@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent Resume Screener (Working Demo)</title>
+    <!-- Load Tailwind CSS and Font Awesome for icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Load marked.js for Markdown rendering of AI output -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> 
+    <style>
+        /* BASE STYLES & SCROLLBAR */
+        /* Apply dark mode colors based on the 'dark' class on <html> */
+        html.dark {
+            background-color: #0f172a; /* Dark slate background */
+            color: #e2e8f0; /* Light gray text */
+        }
+
+        /* Custom scrollbar for text areas */
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-thumb { background-color: #4f46e5; border-radius: 4px; }
+        textarea::-webkit-scrollbar-track { background-color: #e5e7eb; }
+        
+        /* Dark mode scrollbar track */
+        html.dark textarea::-webkit-scrollbar-track { background-color: #334155; }
+        html.dark textarea::-webkit-scrollbar-thumb { background-color: #6366f1; }
+
+        /* Styles for highlighting text */
+        .matched-keyword {
+            background-color: #6ee7b7; /* green-300 */
+            border-radius: 4px;
+            padding: 1px 3px;
+            font-weight: 600;
+            cursor: help;
+            transition: all 0.2s ease-in-out; /* Smooth transition */
+        }
+        .missing-keyword {
+            background-color: #fca5a5; /* red-300 */
+            border-radius: 4px;
+            padding: 1px 3px;
+            cursor: help;
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* Subtle Glow effect on the main button */
+        .glow-button {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glow-button:hover {
+            /* Deeper shadow and a slight drop-shadow for the glow effect */
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.5), 0 4px 6px -2px rgba(79, 70, 229, 0.2);
+            filter: drop-shadow(0 0 10px rgba(79, 70, 229, 0.7));
+        }
+
+        /* Modal transitions */
+        .modal-transition {
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+    </style>
+    <script>
+        // Set Tailwind configuration for a professional look
+        tailwind.config = {
+            darkMode: 'class', // Enable dark mode based on 'dark' class on <html>
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['system-ui', 'sans-serif'], 
+                    },
+                    colors: {
+                        'primary': '#4f46e5', // Indigo
+                        'secondary': '#6366f1', // Lighter Indigo
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 font-sans p-4 md:p-8 transition-colors duration-300">
+
+    <div class="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 md:p-10 transition-colors duration-300">
+        
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-primary dark:text-indigo-400 border-b pb-2">
+                Intelligent Resume Screening System
+            </h1>
+            <!-- Dark Mode Toggle Button -->
+            <button id="themeToggle" onclick="toggleDarkMode()" class="p-3 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition duration-300">
+                <i id="themeIcon" class="fa-solid fa-sun text-xl"></i>
+            </button>
+        </div>
+
+        <p class="text-gray-600 dark:text-gray-400 mb-8 transition-colors duration-300">
+            Objective, transparent ranking of candidates using NLP similarity scoring.
+        </p>
+
+        <!-- Main Grid Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+
+            <!-- 1. Job Description Input -->
+            <div class="lg:col-span-1 bg-indigo-50 dark:bg-indigo-900/40 p-6 rounded-lg shadow-inner border border-indigo-200 dark:border-indigo-700 transition-colors duration-300">
+                <label for="jobDescription" class="block text-xl font-semibold text-primary dark:text-indigo-400 mb-3">1. Job Description (JD) Requirements</label>
+                <textarea id="jobDescription" rows="12" class="w-full p-4 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:ring-secondary dark:focus:ring-indigo-400 focus:border-secondary dark:focus:border-indigo-400 transition duration-150 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" placeholder="Paste the key job requirements here. Example: Must have 3+ years experience with Python, deep knowledge of AWS S3, and expertise in data analysis using Pandas and NumPy."></textarea>
+                <button onclick="refineJobDescription()" class="mt-4 w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200 glow-button text-sm">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> ✨ Refine JD with AI
+                </button>
+            </div>
+
+            <!-- 2. Resumes Input (Batch Upload Simulation) -->
+            <div class="lg:col-span-2 bg-purple-50 dark:bg-purple-900/40 p-6 rounded-lg shadow-inner border border-purple-200 dark:border-purple-700 transition-colors duration-300">
+                <label for="resumeText" class="block text-xl font-semibold text-primary dark:text-indigo-400 mb-3">2. Candidate Resumes (Batch Input)</label>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Paste multiple resume texts below. Separate each individual resume by a line of dashes (e.g., `---`).</p>
+                <textarea id="resumeText" rows="12" class="w-full p-4 border border-purple-300 dark:border-purple-600 rounded-lg focus:ring-secondary dark:focus:ring-indigo-400 focus:border-secondary dark:focus:border-indigo-400 transition duration-150 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" placeholder="--- RESUME 1 ---
+Candidate A has significant experience in full-stack development. Proficient in Python, JavaScript, and uses Django. He has used AWS EC2 extensively, but no explicit mention of S3. Knows pandas well.
+
+--- RESUME 2 ---
+Candidate B focuses on DevOps. Strong skills in Kubernetes, Terraform, and Docker. Experience with AWS and a little bit of Python for scripting."></textarea>
+            </div>
+        </div>
+
+        <!-- JD Refinement Results Area (Gemini API Output) -->
+        <div id="geminiOutputArea" class="hidden mb-10 p-6 bg-yellow-50 dark:bg-yellow-900/30 rounded-xl border border-yellow-200 dark:border-yellow-700 transition-colors duration-300">
+            <h3 class="text-xl font-bold text-yellow-800 dark:text-yellow-400 mb-3"><i class="fa-solid fa-lightbulb mr-2"></i> JD Refinement Suggestions:</h3>
+            <div id="geminiOutputContent" class="text-gray-800 dark:text-gray-200 whitespace-pre-wrap"></div>
+            <p class="text-sm text-yellow-700 dark:text-yellow-500 mt-3">💡 Review the suggested JD and copy/paste any improved text or missing keywords back into the JD box (Section 1) before scanning resumes.</p>
+        </div>
+        
+        <!-- Action Button with Hover and Glow -->
+        <div class="text-center mb-10">
+            <button onclick="processResumes()" class="px-10 py-4 bg-primary text-white font-bold text-lg rounded-full glow-button hover:scale-[1.02] active:scale-100">
+                <i class="fa-solid fa-sync-alt mr-2"></i>
+                Screen and Rank Candidates (Batch Scan)
+            </button>
+        </div>
+        
+        <!-- Loading Indicator -->
+        <div id="loading" class="text-center text-lg text-gray-500 dark:text-gray-400 hidden p-4 transition-colors duration-300">
+            <i class="fa-solid fa-spinner fa-spin mr-2"></i> Processing resumes... Calculating match scores.
+        </div>
+         <div id="aiLoading" class="text-center text-lg text-gray-500 dark:text-gray-400 hidden p-4 transition-colors duration-300">
+            <i class="fa-solid fa-spinner fa-spin mr-2 text-indigo-500"></i> Generating JD refinements using Gemini...
+        </div>
+
+        <!-- 3. Results Area -->
+        <div id="resultsArea" class="hidden">
+            <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-200 mb-6 border-b pb-2 transition-colors duration-300">3. Screening Results & Ranking</h2>
+            
+            <div id="resultsTableContainer" class="overflow-x-auto mb-10">
+                <!-- Results Table will be injected here -->
+            </div>
+            
+            <h3 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-10 mb-4 border-b pb-2 transition-colors duration-300">JD Required Skills</h3>
+            <div id="requiredKeywords" class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border dark:border-gray-600 transition-colors duration-300">
+                <!-- JD keywords will be injected here -->
+            </div>
+
+        </div>
+
+    </div>
+    
+    <!-- Modal for Detailed Resume View (Initially hidden with transition) -->
+    <div id="detailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-75 modal-transition opacity-0" onclick="closeModal(event)">
+        <!-- Modal content will be injected here -->
+    </div>
+
+
+    <script>
+        // --- GEMINI API INTEGRATION ---
+        const API_KEY = "AIzaSyAIpgvjv7XxgiY8601BfPcxhw41zroBahM"; // Placeholder for Gemini API Key
+        const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=" + API_KEY;
+        const MAX_RETRIES = 3;
+        const BASE_DELAY = 1000; // 1 second
+
+        /**
+         * Generic function to call the Gemini API with exponential backoff.
+         */
+        async function callGeminiApi(userQuery, systemPrompt) {
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+            
+            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        return result.candidates?.[0]?.content?.parts?.[0]?.text || "Error: AI response structure invalid.";
+                    } else if (response.status === 429 && attempt < MAX_RETRIES - 1) {
+                        // Rate limit exceeded, apply exponential backoff
+                        const delay = BASE_DELAY * Math.pow(2, attempt) + Math.random() * 1000;
+                        console.warn(`Rate limit hit (429). Retrying in ${delay / 1000}s...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        throw new Error(`API error: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    if (attempt === MAX_RETRIES - 1) {
+                        console.error("Gemini API call failed after multiple retries:", error);
+                        return `Error: Failed to connect to AI service. Please check the console for details.`;
+                    }
+                    // Non-429 error, but might be transient network issue, still retry
+                    const delay = BASE_DELAY * Math.pow(2, attempt) + Math.random() * 500;
+                    console.warn(`Connection error. Retrying in ${delay / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            return "Error: Unknown failure after maximum retries.";
+        }
+
+        /**
+         * LLM-Powered Feature: Refines JD text and suggests keywords.
+         */
+        async function refineJobDescription() {
+            const jdText = document.getElementById('jobDescription').value.trim();
+            const loading = document.getElementById('aiLoading');
+            const outputArea = document.getElementById('geminiOutputArea');
+            const outputContent = document.getElementById('geminiOutputContent');
+
+            if (!jdText) {
+                alert('Please paste the Job Description text before asking the AI to refine it.');
+                return;
+            }
+
+            outputArea.classList.add('hidden');
+            loading.classList.remove('hidden');
+
+            const systemPrompt = "You are an expert Talent Acquisition Strategist. Your task is to analyze the provided raw job description, improve its structure and clarity for a modern job board, and suggest 5 additional highly relevant technical keywords that a candidate might use, which should be considered for screening. Present the output in clean Markdown format with clear headings for 'Improved Job Description' and 'Suggested Keywords'.";
+            const userQuery = `Analyze and refine this raw Job Description and suggest 5 technical keywords: "${jdText}"`;
+
+            // Call the AI
+            const aiResponse = await callGeminiApi(userQuery, systemPrompt);
+            
+            // Check if marked.js is available for rendering
+            if (typeof marked !== 'undefined') {
+                 outputContent.innerHTML = marked.parse(aiResponse);
+            } else {
+                 // Fallback for raw text display
+                 outputContent.innerHTML = `<pre class="whitespace-pre-wrap">${aiResponse}</pre>`;
+            }
+
+            outputArea.classList.remove('hidden');
+            loading.classList.add('hidden');
+        }
+
+        // --- DATA PROCESSING & NLP ALGORITHMS ---
+        
+        const stopWords = new Set(["the", "and", "for", "with", "experience", "years", "proficient", "deep", "knowledge", "expertise", "using", "must", "have", "in", "of", "a", "an", "is", "was", "are", "were", "to", "or", "but", "also", "used", "skill", "skills", "set", "on", "by", "at", "etc"]);
+        let screeningResults = [];
+
+        /**
+         * Step 1: Tokenization and Text Normalization
+         */
+        function normalizeText(text) {
+            text = text.toLowerCase();
+            text = text.replace(/[^a-z0-9\s]/g, " "); 
+            
+            const tokens = text.split(/\s+/)
+                .filter(token => token.length > 2 && !stopWords.has(token));
+            
+            return new Set(tokens);
+        }
+
+        /**
+         * Step 2: Ranking Algorithm - Jaccard/Cosine Similarity Proxy
+         */
+        function calculateMatchScore(resumeKeywords, jdKeywords) {
+            if (jdKeywords.size === 0) return 0;
+
+            let intersectionCount = 0;
+            
+            jdKeywords.forEach(jdKeyword => {
+                if (resumeKeywords.has(jdKeyword)) {
+                    intersectionCount++;
+                }
+            });
+            
+            const score = (intersectionCount / jdKeywords.size) * 100;
+
+            return parseFloat(Math.min(100, Math.max(0, score)).toFixed(1));
+        }
+        
+        /**
+         * Step 3: Highlight Matched/Missing Keywords (Transparency Feature)
+         */
+        function highlightText(text, matchedKeywords, missingKeywords) {
+            const keywordsToHighlight = new Map();
+            
+            matchedKeywords.forEach(k => keywordsToHighlight.set(k, 'matched-keyword'));
+            missingKeywords.forEach(k => keywordsToHighlight.set(k, 'missing-keyword'));
+
+            const keywords = Array.from(keywordsToHighlight.keys());
+            if (keywords.length === 0) return text;
+            
+            keywords.sort((a, b) => b.length - a.length);
+
+            const regex = new RegExp(`\\b(${keywords.join('|')})\\b`, 'gi');
+
+            return text.replace(regex, (match) => {
+                const normalizedMatch = match.toLowerCase().replace(/[^a-z0-9]/g, " ").trim().split(/\s+/)[0];
+                
+                const className = keywordsToHighlight.get(normalizedMatch);
+                
+                if (className) {
+                    return `<span class="${className}" title="${className === 'matched-keyword' ? 'MATCHED SKILL' : 'MISSING SKILL'}">${match}</span>`;
+                }
+                return match;
+            });
+        }
+
+
+        // --- UI & WORKFLOW LOGIC ---
+
+        async function processResumes() {
+            const jdText = document.getElementById('jobDescription').value.trim();
+            const resumesText = document.getElementById('resumeText').value.trim();
+            
+            const resultsArea = document.getElementById('resultsArea');
+            const loadingIndicator = document.getElementById('loading');
+
+            resultsArea.classList.add('hidden');
+            loadingIndicator.classList.remove('hidden');
+
+
+            if (!jdText || !resumesText) {
+                // Use a short delay before alerting for a smooth transition from loading state
+                setTimeout(() => {
+                    // Using standard alert for simplicity in a self-contained prototype
+                    alert('Please enter the Job Description and at least one Resume text.'); 
+                    loadingIndicator.classList.add('hidden');
+                }, 100);
+                return;
+            }
+
+            // Simulate API latency/workload for effect
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+
+            const jdKeywords = normalizeText(jdText);
+            const jdKeywordsArray = Array.from(jdKeywords);
+            
+            renderRequiredKeywords(jdKeywordsArray);
+
+            // Robustly split by the '--- RESUME X ---' pattern
+            const individualResumes = resumesText.split(/---\s*RESUME\s*\d*\s*---/gi).filter(text => text.trim().length > 0);
+
+            screeningResults = [];
+            
+            individualResumes.forEach((resume, index) => {
+                const resumeKeywords = normalizeText(resume);
+                const matchScore = calculateMatchScore(resumeKeywords, jdKeywords);
+                
+                const matchedKeywords = new Set(jdKeywordsArray.filter(k => resumeKeywords.has(k)));
+                const missingKeywords = new Set(jdKeywordsArray.filter(k => !resumeKeywords.has(k)));
+
+                screeningResults.push({
+                    id: index + 1,
+                    text: resume,
+                    score: matchScore,
+                    matchedKeywords: matchedKeywords,
+                    missingKeywords: missingKeywords
+                });
+            });
+
+            screeningResults.sort((a, b) => b.score - a.score);
+
+            setTimeout(() => {
+                renderResultsTable(screeningResults);
+                loadingIndicator.classList.add('hidden');
+                resultsArea.classList.remove('hidden');
+            }, 500); 
+        }
+
+        function renderRequiredKeywords(keywords) {
+            const container = document.getElementById('requiredKeywords');
+            if (keywords.length === 0) {
+                 container.innerHTML = `<p class="text-red-500 dark:text-red-400">No strong keywords detected in the Job Description. Please ensure the JD is detailed.</p>`;
+                 return;
+            }
+            const html = `<div class="flex flex-wrap gap-2 p-2">
+                ${keywords.map(k => `<span class="px-3 py-1 text-sm bg-indigo-100 dark:bg-indigo-700 dark:text-indigo-100 text-indigo-700 rounded-full font-medium transition-colors duration-300">${k}</span>`).join('')}
+            </div>`;
+            container.innerHTML = html;
+        }
+
+        function renderResultsTable(results) {
+            const container = document.getElementById('resultsTableContainer');
+            if (results.length === 0) {
+                container.innerHTML = `<p class="text-xl text-center text-red-600 dark:text-red-400">No resumes found for scanning.</p>`;
+                return;
+            }
+            
+            let tableHTML = `
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-600 rounded-lg overflow-hidden shadow-lg border dark:border-gray-700">
+                    <thead class="bg-primary text-white">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Rank</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Candidate Summary</th>
+                            <th class="px-6 py-3 text-right text-sm font-bold uppercase tracking-wider">Match Score</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Matched / Missing Skills</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700 transition-colors duration-300">
+            `;
+            
+            results.forEach((result, index) => {
+                const summaryText = result.text.split('\n')[0].substring(0, 60).trim() + '...';
+                
+                let scoreColor;
+                if (result.score >= 80) scoreColor = 'text-green-600 dark:text-green-400';
+                else if (result.score >= 50) scoreColor = 'text-yellow-600 dark:text-yellow-400';
+                else scoreColor = 'text-red-600 dark:text-red-400';
+
+                const rowBg = index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700';
+                const textColor = 'text-gray-700 dark:text-gray-300';
+                const hoverBg = 'hover:bg-indigo-100 dark:hover:bg-indigo-900';
+                const primaryText = 'hover:text-primary dark:hover:text-indigo-400';
+
+                tableHTML += `
+                    <tr class="${rowBg} ${hoverBg} transition duration-150">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">${index + 1}</td>
+                        <td class="px-6 py-4 text-sm ${textColor} cursor-pointer ${primaryText} transition duration-150" onclick="showResumeDetail(${index})">
+                            <span class="font-semibold">${summaryText}</span>
+                            <br><span class="text-xs text-indigo-500 dark:text-indigo-400 underline">Click for Detail & Transparency</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-xl font-extrabold ${scoreColor}">
+                            ${result.score}%
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-700 dark:text-green-100 text-green-700">Matched: ${result.matchedKeywords.size}</span>
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-700 dark:text-red-100 text-red-700 ml-2">Missing: ${result.missingKeywords.size}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
+        }
+
+        function showResumeDetail(index) {
+            const result = screeningResults[index];
+            if (!result) return;
+            
+            const matched = Array.from(result.matchedKeywords);
+            const missing = Array.from(result.missingKeywords);
+            
+            const highlightedText = highlightText(result.text, matched, missing);
+
+            const modal = document.getElementById('detailModal');
+            
+            let scoreColorClass = 'text-red-600 dark:text-red-400';
+            if (result.score >= 80) scoreColorClass = 'text-green-600 dark:text-green-400';
+            else if (result.score >= 50) scoreColorClass = 'text-yellow-600 dark:text-yellow-400';
+
+            const content = `
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-8 transform modal-transition scale-100 transition-colors duration-300" onclick="event.stopPropagation()">
+                    
+                    <div class="flex justify-between items-center border-b pb-4 mb-4 border-gray-200 dark:border-gray-600">
+                        <h5 class="text-2xl font-bold text-primary dark:text-indigo-400">Resume #${result.id} Match Detail (Transparency View)</h5>
+                        <button onclick="closeModal()" class="text-gray-500 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition duration-150">
+                            <i class="fa-solid fa-times text-xl"></i>
+                        </button>
+                    </div>
+
+                    <div class="mb-6 p-4 rounded-lg flex justify-between items-center bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                        <div class="text-xl font-bold text-gray-800 dark:text-gray-200">
+                            Final Match Score: <span class="text-2xl ml-2 ${scoreColorClass}">${result.score}%</span>
+                        </div>
+                        <div class="text-sm text-gray-600 dark:text-gray-300">
+                            <span class="px-3 py-1 rounded-full bg-green-200 dark:bg-green-700 dark:text-green-100 text-green-800 font-medium">Matched: ${matched.length}</span>
+                            <span class="px-3 py-1 rounded-full bg-red-200 dark:bg-red-700 dark:text-red-100 text-red-800 font-medium ml-2">Missing: ${missing.length}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Highlight Key -->
+                    <div class="flex flex-wrap gap-6 mb-4 text-sm font-medium border-b pb-4 border-gray-200 dark:border-gray-600">
+                        <span class="flex items-center text-green-700 dark:text-green-400"><span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span> Matched JD Skill</span>
+                        <span class="flex items-center text-red-700 dark:text-red-400"><span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span> Missing JD Skill</span>
+                    </div>
+
+                    <div class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed border p-6 rounded-lg bg-white dark:bg-gray-800 shadow-inner max-h-80 overflow-y-auto transition-colors duration-300" style="font-size: 16px;">
+                        ${highlightedText}
+                    </div>
+                    
+                </div>
+            `;
+            
+            modal.innerHTML = content;
+            modal.classList.remove('hidden');
+            // Add opacity 1 after showing for smooth transition effect
+            setTimeout(() => modal.style.opacity = 1, 10);
+        }
+
+        function closeModal(event) {
+            const modal = document.getElementById('detailModal');
+            // Check if click was on the overlay or the close button
+            if (!event || event.target.id === 'detailModal' || event.target.closest('button')) {
+                // Fade out effect
+                modal.style.opacity = 0;
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.innerHTML = '';
+                }, 300);
+            }
+        }
+        
+        // --- DARK MODE LOGIC ---
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            
+            if (html.classList.contains('dark')) {
+                // Switch to Light Mode
+                html.classList.remove('dark');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'light');
+            } else {
+                // Switch to Dark Mode
+                html.classList.add('dark');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                html.classList.add('dark');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            } else {
+                 html.classList.remove('dark');
+                 icon.classList.remove('fa-moon');
+                 icon.classList.add('fa-sun');
+            }
+        }
+        
+        window.onload = function() {
+            initializeTheme();
+            // Set sample data for quick demonstration
+            document.getElementById('jobDescription').value = `We are seeking a Senior Data Engineer with expertise in modern cloud technologies. Required skills include: Python (3+ years), SQL, and advanced knowledge of AWS services like S3, Redshift, and Lambda. Experience with Pandas and NumPy for data manipulation is a major plus. Excellent communication and teamwork skills are essential.`;
+
+            document.getElementById('resumeText').value = `--- RESUME 1 ---
+Expert Data Engineer with 7 years of Python development and advanced SQL query optimization. Highly skilled in AWS cloud services, including setting up data pipelines using Redshift, Lambda, and S3. Proficient in data manipulation with Pandas and NumPy. Excellent communication and teamwork abilities.
+
+--- RESUME 2 ---
+Lead Data Infrastructure Specialist. Strong background in Python and SQL development. Designed and maintained large-scale ETL using AWS. Extensive work with S3 storage, Redshift warehousing, and data processing using Pandas. Exceptional communication skills.
+
+--- RESUME 3 ---
+Senior Python Developer. Focused on data analysis projects. Solid foundation in Python and complex SQL. Has utilized AWS extensively for deployments. Experience with Pandas for manipulation and NumPy for numerical modeling. Strong teamwork capability.
+
+--- RESUME 4 ---
+Administrative Assistant. Proficient in Microsoft Office Suite, scheduling, and general office communication. Used SQL only once for a basic report query.
+
+
+--- RESUME 5 ---
+Software Engineer. 4 years of coding experience primarily in Java, but has used Python for backend services. Strong SQL skills. General familiarity with AWS environment. Excellent communication skills.
+
+--- RESUME 6  ---
+Database Specialist. Expert in all aspects of SQL and database administration. Uses Python occasionally for automation tasks. Limited exposure to cloud platforms or data science libraries.
+
+--- RESUME 7  ---
+C# Developer. Maintained enterprise applications using C#. Has some basic knowledge of Python scripting for DevOps tasks. Knows standard relational SQL syntax.
+
+--- RESUME 8  ---
+DevOps Engineer. Primary tools are Docker, Terraform, and Kubernetes. Has written minimal Python scripts for environment setup. General familiarity with AWS hosting infrastructure.
+
+--- RESUME 9 ---
+Project Manager. Strong leadership, communication, and teamwork skills. Managed a team of 10 developers. Highly competent in Agile and Scrum methodologies. Zero technical background in data engineering.
+
+--- RESUME 10 ---
+Manual QA Tester. Specialized in regression and functional testing using Selenium. Only uses simple Excel for data tracking. No programming or cloud experience mentioned.
+
+--- RESUME 11 ---
+Cloud Data Architect. 5 years Python development and complex SQL queries. Deep experience with Amazon Web Services (AWS) like Aurora and EC2. Uses Pandas/NumPy for reporting. Excellent communication.
+
+--- RESUME 12 ---
+Junior Data Analyst. Currently learning Python and Pandas. Basic SQL knowledge. Strong interest in data analysis. Good teamwork skills.
+
+--- RESUME 13 ---
+Frontend Web Developer. Expert in React, JavaScript, and CSS. Uses Node.js for backend services. Limited interaction with Python or data warehouses. Strong teamwork focus.
+
+--- RESUME 14  ---
+Mid-Level Data Analyst. Proficient in Python scripting and standard SQL databases. Familiar with data manipulation libraries like Pandas. Has taken introductory courses on AWS cloud services. Good communication skills.
+
+--- RESUME 15 ---
+Highly capable Data Engineer focusing on scalable solutions. Mastery of Python and SQL. Deployed several architectures on AWS using S3 storage and Redshift warehousing. Familiar with Lambda functions. Excellent communication and teamwork.
+
+--- RESUME 16 ---
+Senior Data Engineer with expertise in modern cloud technologies. Required skills include: Python (3+ years), SQL, and advanced knowledge of AWS services like S3, Redshift, and Lambda. Experience with Pandas and NumPy for data manipulation is a major plus. Excellent communication and teamwork skills are essential.
+            `;
+        };
+
+    </script>
+</body>
+</html>
