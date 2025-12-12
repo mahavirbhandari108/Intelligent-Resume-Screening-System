@@ -2,11 +2,11 @@ Intelligent Resume Screening System (SkillMatch)
 Project Overview
 SkillMatch is a functional prototype of an intelligent screening system designed to automate the initial resume assessment process for recruiters. It provides an objective relevance score by comparing candidate resumes against a Job Description (JD) using Natural Language Processing (NLP) and Machine Learning (ML) techniques.
 Key Deliverable: This project focuses on Transparency, providing a visual, auditable breakdown of matching skills to overcome the "black-box" limitations of traditional Applicant Tracking Systems (ATS).
-Objective	Status	Implementation Detail
+Objective	Status	  Implementation Detail
 Functional ML Code	✅ COMPLETE	Core matching logic implemented client-side in JavaScript (Jaccard Similarity proxy for TF-IDF).
-Evaluation	✅ COMPLETE	Qualitative evaluation (Interpretability, Latency) and quantitative score distribution analysis.
-Refinement	✅ COMPLETE	Integration of Gemini API for AI-powered Job Description refinement and keyword suggestion.
-Transparency	✅ COMPLETE	Highlighted visualization of Matched (Green) and Missing (Red) keywords in the resume text.
+Evaluation	        ✅ COMPLETE	Qualitative evaluation (Interpretability, Latency) and quantitative score distribution analysis.
+Refinement	        ✅ COMPLETE	Integration of Gemini API for AI-powered Job Description refinement and keyword suggestion.
+Transparency	      ✅ COMPLETE	Highlighted visualization of Matched (Green) and Missing (Red) keywords in the resume text.
 
 📐 System Architecture and Algorithms
 The system follows a three-tier logical architecture designed for rapid, real-time feedback.
