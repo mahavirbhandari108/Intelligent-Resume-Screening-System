@@ -23,7 +23,7 @@ Gemini LLM (gemini-2.5-flash)	JD Refinement & Suggestion	Analyzes the recruiter'
 🚀 How to Run the Application
 Since the ML logic is implemented entirely in JavaScript, no backend server (Flask/Node.js) setup is required.
 1.	Clone the Repository:
-git clone [YOUR_REPOSITORY_URL]
+git clone [(https://github.com/mahavirbhandari108/Intelligent-Resume-Screening-System.git)L]
 
 2.	Locate the File: Open the project folder and find resume_screener.html.
 3.	Run in Browser: Double-click the resume_screener.html file. It will open immediately in your default web browser (Chrome, Firefox, etc.).
